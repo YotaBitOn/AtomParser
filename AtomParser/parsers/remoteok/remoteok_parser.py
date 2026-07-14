@@ -19,7 +19,7 @@ session = requests.Session()
 def fetch_page(link):
     local_url = url + link
     try:
-        response = requests.post(
+        response = requests.get(
             local_url,
             headers=headers,
             timeout=15
@@ -130,7 +130,7 @@ def process_job(job, link):
     print("Last parsed: ", last_parsed)
     print("Description: ", description, '...')
 
-def extract_jobs_links(jobs_html):
+def extract_job_links(jobs_html):
     links = jobs_html.find_all('a', attrs={'class': 'action-apply' })
 
     links = [link.get('href') for link in links] #href extraciton
@@ -147,7 +147,7 @@ while True:
     if not jobs_html:
         break
 
-    links = extract_jobs_links(jobs_html)
+    links = extract_job_links(jobs_html)
 
     print(len(links))
 
