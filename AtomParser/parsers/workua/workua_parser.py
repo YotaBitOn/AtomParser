@@ -91,8 +91,8 @@ def process_job(job, link):
     location = None
     local_tags = []
 
-    title = job.find(attrs={'id': 'h1-name'})
-    title = title.get_text(strip=True) if title else None
+    full_title = job.find(attrs={'id': 'h1-name'})
+    full_title = full_title.get_text(strip=True) if full_title else None
 
     time_container = job.find('time')
     last_updated = time_container['datetime'] if time_container else None
@@ -146,7 +146,7 @@ def process_job(job, link):
             for tag in tags_container.find_all("li")
         ]
     print("External id: ", external_id)
-    print("Title: ", title)
+    print("Title: ", full_title)
     print("Salary: ", salary)
     print("Experience: ", experience)
     print("Employment type: ", employment_type)

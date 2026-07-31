@@ -1,12 +1,16 @@
+import datetime
 import time
 from math import ceil
 
 import requests, logging
+from bs4 import BeautifulSoup
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
+#will use dotenv later
 API_KEY = "badb15ef-f252-4028-91e5-681556c7975c"
+
 url = f"https://jooble.org/api/{API_KEY}"
 
 payload = {
@@ -14,12 +18,30 @@ payload = {
     "page": 1,
 }
 
-def fetch_page(page = 1):
+session = requests.Session()
+
+def process_details(html):
+    try:
+        soup = BeautifulSoup(html, 'html.parser')
+    except Exception as e:
+        logger.error(e)
+        return None, None
+
+    header_container = soup.find('div', attrs={'data-test-name': '_remoteJobLabel'})
+    employment_type_container = header_container.find('div', attrs={'class': 'blapLw q40Pqk fhg31q NTN-BG'})
+    employment_type = employment_type_container.get_text(strip=True) if employment_type_container else None
+
+    description_container = soup.find('div', attrs={'data-test-name': '_jobDescriptionBlock'})
+    description = description_container.get_text(strip=True) if description_container else None
+
+    return employment_type, description
+
+def fetch_job_list(page = 1):
     local_payload = payload.copy()
     local_payload['page'] = page
 
     try:
-        response = requests.post(
+        response = session.post(
             url,
             json=local_payload,
             timeout=15
@@ -46,40 +68,103 @@ def fetch_page(page = 1):
     return data
 
 def process_job(job):
-    print("title: ", job.get('title'))
-    print("location: ", job.get('location'))
-    print("snippet: ", job.get('snippet'))
-    print("salary: ", job.get('salary'))
-    print("source: ", job.get('source'))
-    print("type: ", job.get('type'))
-    print("company: ", job.get('company'))
 
+    print(job.keys())
+
+    external_id = job.get('id')
+    title = 'Software Engineer'
+    full_title = job.get('title')
+    salary = job.get('salary')
+
+    local_tags = []
+    company = job.get('company')
+    location = job.get('location')
+    is_remote = job.get('location') == 'Remote'
+    source = job.get('source')
+    link_to_page = job.get('link')
+    last_updated = job.get('updated')
+    last_parsed = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    # Not provided
+    experience = None
+    employment_type = None
+    description = None
+
+
+    #print("External id: ", external_id)
+    #print("Title: ", title)
+    #print("Salary: ", salary)
+    #print("Experience: ", experience)
+    #print("Employment type: ", employment_type)
+    #print("Tags: ", local_tags)
+    #print("Company: ", company)
+    #print("Location: ", location)
+    #print("Is remote: ", is_remote)
+    #print("Source: ", source)
+    #print("Link to page: ", link_to_page)
+    #print("Last updated: ", last_updated)
+    #print("Last parsed: ", last_parsed)
+    #print("Description: ", description, '...')
     print('\n\n\n')
+
+    object = {
+        "external_id": external_id,
+        "title": full_title,
+        "salary": salary,
+        "experience": experience,
+        "employment_type": employment_type,
+        "tags": local_tags,
+        "company": company,
+        "location": location,
+        "is_remote": is_remote,
+        "source": source,
+        "link_to_page": link_to_page,
+        "last_updated": last_updated,
+        "last_parsed": last_parsed,
+        "description": description,
+    }
+
+    return object
 #doing first fetch
-basic_data = fetch_page()
-if not basic_data:
-    logger.warning(f"First page is empty, breaking parsing process")
-    quit()
-for job in basic_data["jobs"]:
-    process_job(job)
+def parse():
+    basic_data = fetch_job_list()
+    if not basic_data:
+        logger.warning(f"First page is empty, breaking parsing process")
+        quit()
 
-#metadata for loop
-jobs_per_page = len(basic_data['jobs'])
-jobs_total = basic_data['totalCount']
+    for job in basic_data["jobs"]:
+        try:
+            processed_job = process_job(job)
+            if processed_job:
+                yield processed_job
+            else:
+                logger.error(f"Failed to process job: {job}")
+        except Exception as e:
+            logger.error(f"Error processing job: {job}. Error: {e}")
 
-MAX_PAGES = ceil(jobs_total / jobs_per_page)
+    #metadata for loop
+    jobs_per_page = len(basic_data['jobs'])
+    jobs_total = basic_data['totalCount']
 
-for page in range(2, MAX_PAGES+1):
-    logger.info(f"Fetching page {page}")
+    MAX_PAGES = ceil(jobs_total / jobs_per_page)
 
+    for page in range(2, MAX_PAGES+1):
+        logger.info(f"Fetching page {page}")
 
-    data = fetch_page(page)
-    if not data:
-        logger.warning(f"Page {page} is empty, breaking parsing process")
-        break
+        data = fetch_job_list(page)
+        if not data:
+            logger.warning(f"Page {page} is empty, breaking parsing process")
+            break
 
-    for job in data['jobs']:
-        process_job(job)
+        for job in data['jobs']:
+            try:
+                processed_job = process_job(job)
+                if processed_job:
+                    yield processed_job
+                else:
+                    logger.error(f"Failed to process job: {job}")
+            except Exception as e:
+                logger.error(f"Error processing job: {job}. Error: {e}")
 
-    logger.info(f"Successfully processed page {page}")
-    time.sleep(1)
+        logger.info(f"Successfully processed page {page}")
+        time.sleep(1)

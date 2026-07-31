@@ -82,8 +82,8 @@ def process_job(job, link):
 
     external_id = link.split('/')[-1]
 
-    title = container.find('h2', attrs={'itemprop': "title"})
-    title = title.get_text(strip=True) if title else None
+    full_title = container.find('h2', attrs={'itemprop': "title"})
+    full_title = full_title.get_text(strip=True) if full_title else None
 
     company = container.find('h3', attrs={'itemprop': "name"})
     company = company.get_text(strip=True) if company else None
@@ -118,7 +118,7 @@ def process_job(job, link):
         salary = None
 
     print("External id: ", external_id)
-    print("Title: ", title)
+    print("Title: ", full_title)
     print("Salary: ", salary)
     print("Tags: ", local_tags)
     print("Company: ", company)
