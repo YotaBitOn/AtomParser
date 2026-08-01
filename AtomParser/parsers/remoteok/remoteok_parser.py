@@ -71,7 +71,7 @@ def fetch_chunk(offset = 0):
 def process_job(job, link):
     source = 'remoteok'
     link_to_page = url+link
-    last_parsed = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+    last_parsed = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 
 
@@ -117,19 +117,35 @@ def process_job(job, link):
     if not salary or salary == 'Upgrade to Premium':
         salary = None
 
-    print("External id: ", external_id)
-    print("Title: ", full_title)
-    print("Salary: ", salary)
-    print("Tags: ", local_tags)
-    print("Company: ", company)
-    print("Locations: ", locations)
-    print("Is remote: ", True)
-    print("Source: ", source)
-    print("Link to page: ", link_to_page)
-    print("Last updated: ", last_updated)
-    print("Last parsed: ", last_parsed)
-    print("Description: ", description, '...')
+    #print("External id: ", external_id)
+    #print("Title: ", full_title)
+    #print("Salary: ", salary)
+    #print("Tags: ", local_tags)
+    #print("Company: ", company)
+    #print("Locations: ", locations)
+    #print("Is remote: ", True)
+    #print("Source: ", source)
+    #print("Link to page: ", link_to_page)
+    #print("Last updated: ", last_updated)
+    #print("Last parsed: ", last_parsed)
+    #print("Description: ", description, '...')
 
+    object = {
+        "external_id": external_id,
+        "title": full_title,
+        "salary": salary,
+        "tags": local_tags,
+        "company": company,
+        "location": locations,
+        "is_remote": True,
+        "source": source,
+        "link_to_page": link_to_page,
+        "last_updated": last_updated,
+        "last_parsed": last_parsed,
+        "description": description
+    }
+
+    return object
 def extract_job_links(jobs_html):
     links = jobs_html.find_all('a', attrs={'class': 'action-apply' })
 
@@ -139,36 +155,39 @@ def extract_job_links(jobs_html):
 
     return links
 
-offset = 0
-while True:
+def parse():
+    offset = 0
+    while True:
 
-    jobs_html = fetch_chunk(offset = offset)
+        jobs_html = fetch_chunk(offset = offset)
 
-    if not jobs_html:
-        break
+        if not jobs_html:
+            break
 
-    links = extract_job_links(jobs_html)
+        links = extract_job_links(jobs_html)
 
-    print(len(links))
+        print(len(links))
 
-    if not links:
-        logger.info(f'No job links for {tags} were found, stopping...')
-        break
+        if not links:
+            logger.info(f'No job links for {tags} were found, stopping...')
+            break
 
-    logger.info(f'Found {len(links)} job links for {tags}, parsing job pages...')
+        logger.info(f'Found {len(links)} job links for {tags}, parsing job pages...')
 
-    i = offset+1
-    for link in links:
+        i = offset+1
+        for link in links:
 
-        html = fetch_page(link)
+            html = fetch_page(link)
 
-        if not html:
-            logger.info(f'No page on link {link} were found, skipping...')
-            continue
+            if not html:
+                logger.info(f'No page on link {link} were found, skipping...')
+                continue
 
-        logger.info(f'Processing job on {link} ...')
-        process_job(html, link)
-        i+=1
-    offset += 50
+            logger.info(f'Processing job on {link} ...')
+            object = process_job(html, link)
 
-    time.sleep(1)
+            yield object
+            i+=1
+        offset += 50
+
+        time.sleep(1)
