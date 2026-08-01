@@ -98,10 +98,7 @@ def norm():
         # done salary, currency,
         #salary
         multiplier = 1
-
-
         salary = normalized_job['salary'].replace('k', '000').strip()
-        normalized_job['currency'] = None
         if salary:
             normalized_job['currency'] = None
             currencies = ['$','€','£','¥','₹','₩','₽']
@@ -177,27 +174,24 @@ def norm():
             normalized_job['max_salary'] = None
 
         #location
-        normalized_job['location_city'] = None
-        normalized_job['location_country'] = None
-
         location = normalized_job['location']
         if 'Remote' in location:
-            pass
+            normalized_job['location'] = None
         else:
             if ',' in location:
-                normalized_job['location_city'] = location.split(',')[0].strip().lower()
+                normalized_job['location_city'] = location.split(',')[0].strip()
 
                 try:
-                    normalized_job['location_country'] = STATE_MAPPING[location.split(',')[1].strip().upper()].lower() #country or state
+                    normalized_job['location_country'] = STATE_MAPPING[location.split(',')[1].strip().upper()] #country or state
                 except KeyError:
                     normalized_job['location_country'] = None
                     logger.error(f'State {location.split(",")[1].strip()} is not a valid state')
             else:
                 if location in STATE_MAPPING.values() or location.lower() in COUNTRY_MAPPING.values():
                     normalized_job['location_city'] = None
-                    normalized_job['location_country'] = location.lower()
+                    normalized_job['location_country'] = location
                 else:
-                    normalized_job['location_city'] = location.lower()
+                    normalized_job['location_city'] = location
                     normalized_job['location_country'] = None
 
         normalized_job['last_updated'] = normalized_job['last_updated'].replace('T', ' ').split('.')[0]
@@ -205,7 +199,6 @@ def norm():
         counter += 1
 
         del normalized_job['salary']
-        del normalized_job['location']
 
         for key in normalized_job.keys():
             print(key, ' : ', normalized_job[key])
