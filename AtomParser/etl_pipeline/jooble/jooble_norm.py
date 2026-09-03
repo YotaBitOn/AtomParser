@@ -4,6 +4,46 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
+currencies = ['$','€','£','¥','₹','₩','₽','']
+
+CURRENCY_PATTERNS = {
+    "UAH": [
+        "uah", "грн", "гривень", "гривні", "гривня", "гривны", "гривен", "гривне",
+        "₴", "uahn", "ukrainian hryvnia", "hryvnia", "hryvnas", "грни", "гр"
+    ],
+    "USD": [
+        "usd", "$", "дол", "доллар", "долларов", "доллары", "долар", "доларів",
+        "долари", "долл", "баксов", "баксы", "бакси", "баксів", "us dollar", "bucks"
+    ],
+    "EUR": [
+        "eur", "€", "евро", "євро", "евр", "еврик", "евриков", "євріків",
+        "euro", "euros", "eur"
+    ],
+    "PLN": [
+        "pln", "zł", "zloty", "злотых", "злотий", "злотих", "зл", "zl",
+        "polish zloty", "злоте"
+    ],
+    "GBP": [
+        "gbp", "£", "pound", "pounds", "фунт", "фунтов", "фунтів", "фунти",
+        "quid", "sterling"
+    ],
+    "CZK": [
+        "czk", "Kč", "крон", "кроны", "кронi", "чешская крона", "чеська крона"
+    ],
+    "CAD": [
+        "cad", "c$", "cad$", "канадский доллар", "канадський долар"
+    ],
+    "AUD": [
+        "aud", "a$", "aud$", "австралийский доллар", "австралійський долар"
+    ],
+    "CHF": [
+        "chf", "fr", "франк", "франков", "франків", "швейцарский франк"
+    ],
+    "USDT": [
+        "usdt", "tether", "тезер", "криптодоллар", "криптодолар"
+    ]
+}
+
 STATE_MAPPING = {
     "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas",
     "CA": "California", "CO": "Colorado", "CT": "Connecticut", "DE": "Delaware",
@@ -101,14 +141,13 @@ def norm():
         salary = normalized_job['salary'].replace('k', '000').strip()
         if salary:
             normalized_job['currency'] = None
-            currencies = ['$','€','£','¥','₹','₩','₽']
 
-
-            for cur in currencies:
-                if cur in salary:
-                    normalized_job['currency'] = cur
-                    salary = salary.replace(cur, '')
-                    break
+            for cur in CURRENCY_PATTERNS.keys():
+                for pattern in CURRENCY_PATTERNS[cur]:
+                    if pattern in salary:
+                        normalized_job['currency'] = cur
+                        salary = salary.replace(pattern, '')
+                        break
             if 'per hour' in salary:
                 multiplier = 2080
                 salary = salary.replace('per hour', '')

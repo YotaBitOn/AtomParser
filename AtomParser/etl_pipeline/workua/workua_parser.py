@@ -64,6 +64,10 @@ def fetch_search_results(page = 1):
             params=params,
             timeout=15
         )
+        if response.status_code == 200:
+            logger.info(f"Successfully got response. Status code: {response.status_code}")
+        else:
+            logger.error(f"Something went wrong. Status code: {response.status_code}")
     except Exception as e:
         logger.error(e)
         return None
@@ -142,24 +146,42 @@ def process_job(job, link):
     tags_container = container.find('ul', attrs={'class': 'flex-wrap'})
     if tags_container:
         local_tags = [
-            tag.get_text(strip=True)
+            tag.get_text(strip=True).lower()
             for tag in tags_container.find_all("li")
         ]
-    print("External id: ", external_id)
-    print("Title: ", full_title)
-    print("Salary: ", salary)
-    print("Experience: ", experience)
-    print("Employment type: ", employment_type)
-    print("Tags: ", local_tags)
-    print("Company: ", company)
-    print("Location: ", location)
-    print("Is remote: ", is_remote)
-    print("Source: ", source)
-    print("Link to page: ", link_to_page)
-    print("Last updated: ", last_updated)
-    print("Last parsed: ", last_parsed)
-    print("Description: ", description, '...')
+    #print("External id: ", external_id)
+    #print("Title: ", full_title)
+    #print("Salary: ", salary)
+    #print("Experience: ", experience)
+    #print("Employment type: ", employment_type)
+    #print("Tags: ", local_tags)
+    #print("Company: ", company)
+    #print("Location: ", location)
+    #print("Is remote: ", is_remote)
+    #print("Source: ", source)
+    #print("Link to page: ", link_to_page)
+    #print("Last updated: ", last_updated)
+    #print("Last parsed: ", last_parsed)
+    #print("Description: ", description, '...')
 
+    obj = {
+        "external_id": external_id,
+        "title": full_title,
+        "salary": salary,
+        "experience": experience,
+        "employment_type": employment_type,
+        "tags": local_tags,
+        "company": company,
+        "location": location,
+        "is_remote": is_remote,
+        "source": source,
+        "link_to_page": link_to_page,
+        "last_updated": last_updated,
+        "last_parsed": last_parsed,
+        "description": description
+    }
+
+    return obj
 def extract_job_links(jobs_html):
     links = []
 
@@ -172,37 +194,48 @@ def extract_job_links(jobs_html):
         links.append(link)
     return links
 
-page = 1
+def parse():
+    data = []
+    page = 1
+    #link = '/jobs/8119980/'
+    #html = fetch_job_page(link)
+    #process_job(html, link)
+    #quit()
+    while True:
+        search_results_html = fetch_search_results(page = page)
 
-#link = '/jobs/8119980/'
-#html = fetch_job_page(link)
-#process_job(html, link)
-#quit()
-while True:
+        if not search_results_html:
+            break
 
-    search_results_html = fetch_search_results(page = page)
+        links = extract_job_links(search_results_html)
 
-    if not search_results_html:
-        break
+        if not links:
+            logger.info(f'No job links for {tags} were found, stopping...')
+            break
 
-    links = extract_job_links(search_results_html)
-
-    if not links:
-        logger.info(f'No job links for {tags} were found, stopping...')
-        break
-
-    logger.info(f'Found {len(links)} job links for {tags}, parsing job pages...')
+        logger.info(f'Found {len(links)} job links for {tags}, parsing job pages...')
 
 
-    for link in links:
+        for link in links:
 
-        html = fetch_job_page(link)
+            html = fetch_job_page(link)
 
-        if not html:
-            logger.info(f'No page on link {link} were found, skipping...')
-            continue
+            if not html:
+                logger.info(f'No page on link {link} were found, skipping...')
+                continue
 
-        logger.info(f'Processing job on {link} ...')
-        process_job(html, link)
-    page += 1
-    time.sleep(random.uniform(2,5))
+            logger.info(f'Processing job on {link} ...')
+
+            obj = process_job(html, link)
+
+            data.append(obj)
+        page += 1
+        time.sleep(random.uniform(2,5))
+    return data
+def save_data(data):
+    import json
+    with open("data.json", "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4)
+
+result = parse()
+save_data(result)
