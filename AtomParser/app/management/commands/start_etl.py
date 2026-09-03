@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 
-from AtomParser.etl_pipeline.ingest.django_orm import ingest
+from etl_pipeline.ingest.django_orm import ingest
 
 class Command(BaseCommand):
     help = "Parse enabled job sources and persist normalized jobs"

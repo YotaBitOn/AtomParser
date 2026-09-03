@@ -1,4 +1,4 @@
-import jooble_parser
+import etl_pipeline.jooble.jooble_parser as jooble_parser
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -165,8 +165,8 @@ def norm():
                         divider = len(min_salary) - min_salary.find('.') - 1
                         if 'k' in normalized_job['salary']:
                             divider -= 3
-                        print(f'{divider = }\n{len(min_salary) = }\n{min_salary.find('.') = }\n{min_salary = }')
-                        print('### here ###')
+                        #print(f'{divider = }\n{len(min_salary) = }\n{min_salary.find('.') = }\n{min_salary = }')
+                        #print('### here ###')
                         min_salary = min_salary.replace('.', '')
                         normalized_job['min_salary'] = int(min_salary) * multiplier // (10 ** divider)
                     else:
@@ -177,8 +177,8 @@ def norm():
                         if 'k' in normalized_job['salary']:
                             divider -= 3
 
-                        print(f'{divider = }\n{salary = }\n{salary.find(".") = }')
-                        print('### here ###')
+                        #print(f'{divider = }\n{salary = }\n{salary.find(".") = }')
+                        #print('### here ###')
 
                         max_salary = max_salary.replace('.', '')
                         normalized_job['max_salary'] = int(max_salary) * multiplier // (10 ** divider)
@@ -195,8 +195,8 @@ def norm():
                         divider = len(salary) - salary.find('.') - 1
                         if 'k' in normalized_job['salary']:
                             divider -= 3
-                        print(f'{divider = }\n{salary = }\n{salary.find(".") = }')
-                        print('### here ###')
+                        #print(f'{divider = }\n{salary = }\n{salary.find(".") = }')
+                        #print('### here ###')
                         min_salary = min_salary.replace('.', '')
                         normalized_job['min_salary'] = int(salary) * multiplier // (10 ** divider)
                         normalized_job['max_salary'] = int(salary) * multiplier // (10 ** divider)
@@ -211,9 +211,12 @@ def norm():
         else:
             normalized_job['min_salary'] = None
             normalized_job['max_salary'] = None
+            normalized_job['currency'] = None
 
         #location
         location = normalized_job['location']
+        normalized_job['location_city'] = None
+        normalized_job['location_country'] = None
         if 'Remote' in location:
             normalized_job['location'] = None
         else:
@@ -239,13 +242,29 @@ def norm():
 
         del normalized_job['salary']
 
-        for key in normalized_job.keys():
-            print(key, ' : ', normalized_job[key])
-        print(f' Normed job #{counter} ')
+        #for key in normalized_job.keys():
+        #    #print(key, ' : ', normalized_job[key])
+        ##print(f' Normed job #{counter} ')
 
-        print('\n\n\n\n')
+       # #print('\n\n\n\n')
+        yield normalized_job
 
-norm()
+def normalize():
+    gen = norm()
+    while True:
+        try:
+            obj = next(gen)
+        except StopIteration:
+            logger.info('SI: No more jobs to normalize, finishing normalization')
+            break
+        except RuntimeError:
+            logger.info('RE: No more jobs to normalize, finishing normalization')
+            break
+        if obj is None:
+            logger.error('Job object is empty,  finishing normalization')
+            break
+        logger.info(f'Normed job:{obj.get("external_id")}, saving...')
+        yield obj
 
 
 

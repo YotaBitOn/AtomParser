@@ -24,9 +24,7 @@ headers = {
     "Upgrade-Insecure-Requests": "1",
 }
 
-
 session = requests.Session()
-
 
 def fetch_job_page(link):
     local_url = url + link
@@ -52,7 +50,7 @@ def fetch_job_page(link):
 
 def fetch_search_results(page = 1):
     local_url = url + '/jobs-' + tags
-    print(local_url)
+    #print(local_url)
     params = {
         "page": page,
     }
@@ -149,20 +147,20 @@ def process_job(job, link):
             tag.get_text(strip=True).lower()
             for tag in tags_container.find_all("li")
         ]
-    #print("External id: ", external_id)
-    #print("Title: ", full_title)
-    #print("Salary: ", salary)
-    #print("Experience: ", experience)
-    #print("Employment type: ", employment_type)
-    #print("Tags: ", local_tags)
-    #print("Company: ", company)
-    #print("Location: ", location)
-    #print("Is remote: ", is_remote)
-    #print("Source: ", source)
-    #print("Link to page: ", link_to_page)
-    #print("Last updated: ", last_updated)
-    #print("Last parsed: ", last_parsed)
-    #print("Description: ", description, '...')
+    ##print("External id: ", external_id)
+    ##print("Title: ", full_title)
+    ##print("Salary: ", salary)
+    ##print("Experience: ", experience)
+    ##print("Employment type: ", employment_type)
+    ##print("Tags: ", local_tags)
+    ##print("Company: ", company)
+    ##print("Location: ", location)
+    ##print("Is remote: ", is_remote)
+    ##print("Source: ", source)
+    ##print("Link to page: ", link_to_page)
+    ##print("Last updated: ", last_updated)
+    ##print("Last parsed: ", last_parsed)
+    ##print("Description: ", description, '...')
 
     obj = {
         "external_id": external_id,
@@ -182,13 +180,14 @@ def process_job(job, link):
     }
 
     return obj
+
 def extract_job_links(jobs_html):
     links = []
 
-    #print(jobs_html)
+    ##print(jobs_html)
     link_containers = jobs_html.find_all('div', attrs={'class': 'card-hover' })
 
-    print(f'Found {len(link_containers)} job links')
+    #print(f'Found {len(link_containers)} job links')
     for container in link_containers:
         link = container.find('a')['href']
         links.append(link)
@@ -197,6 +196,7 @@ def extract_job_links(jobs_html):
 def parse():
     data = []
     page = 1
+    seen_links = set()
     #link = '/jobs/8119980/'
     #html = fetch_job_page(link)
     #process_job(html, link)
@@ -208,10 +208,23 @@ def parse():
             break
 
         links = extract_job_links(search_results_html)
-
         if not links:
             logger.info(f'No job links for {tags} were found, stopping...')
             break
+
+        noting_new = True
+        i = 0
+        while i < len(links):
+            if links[i] not in seen_links:
+                i += 1
+                noting_new = False
+            else:
+                links.pop(i)
+        if noting_new or len(links) == 0:
+            logger.info(f'No new job links were found, stopping...')
+            break
+
+        seen_links.update(links)
 
         logger.info(f'Found {len(links)} job links for {tags}, parsing job pages...')
 
@@ -226,16 +239,24 @@ def parse():
 
             logger.info(f'Processing job on {link} ...')
 
-            obj = process_job(html, link)
+            try:
+                processed_job = process_job(html, link)
+                if processed_job:
+                    logger.info(f"Successfully processed job: {processed_job}")
+                    yield processed_job
+                else:
+                    logger.error(f"Failed to process job: {link}")
+            except Exception as e:
+                logger.error(f"Error processing job: {link}. Error: {e}")
 
-            data.append(obj)
+            #data.append(obj)
         page += 1
         time.sleep(random.uniform(2,5))
-    return data
+    #return data
 def save_data(data):
     import json
     with open("data.json", "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
 
-result = parse()
-save_data(result)
+#result = parse()
+#save_data(result)

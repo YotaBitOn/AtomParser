@@ -1,0 +1,10 @@
+{
+  "READ_MODE_WORKUA" : "json",
+  "READ_MODE_REMOTOK" : "parser",
+  "READ_MODE_JOOBLE" : "parser",
+
+  "PARSE_WORKUA" : true,
+  "PARSE_REMOTOK" : false,
+  "PARSE_JOOBLE" : false
+
+}

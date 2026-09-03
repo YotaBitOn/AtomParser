@@ -1,5 +1,5 @@
 import logging
-import remoteok_parser
+import etl_pipeline.remoteok.remoteok_parser as remoteok_parser
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
@@ -14,9 +14,15 @@ def norm():
     normalized_jobs = []
     counter = 0
     while True:
+        try:
+            job = next(gen)
+        except StopIteration:
+            logger.info(f'Finished parsing {counter} jobs')
+            break
+        except Exception as e:
+            logger.error(f'Error parsing job: {e}')
+            continue
 
-
-        job = next(gen)
         if not job:
             logger.error(f'No job found, skipping...')
             continue
@@ -52,7 +58,24 @@ def norm():
         del normalized_job['salary']
         del normalized_job['location']
 
-        for k, v in normalized_job.items():
-            print(k, ' : ', v)
+        #for k, v in normalized_job.items():
+        #    print(k, ' : ', v)
 
-norm()
+        yield normalized_job
+
+def normalize():
+    gen = norm()
+    while True:
+        try:
+            obj = next(gen)
+        except StopIteration:
+            logger.info('No more jobs to normalize, finishing normalization')
+            break
+        except RuntimeError:
+            logger.info('RE: No more jobs to normalize, finishing normalization')
+            break
+        if obj is None:
+            logger.error('Job object is empty,  finishing normalization')
+            break
+        logger.info(f'Normed job:{obj.get("external_id")}, saving...')
+        yield obj

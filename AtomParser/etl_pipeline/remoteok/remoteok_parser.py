@@ -73,8 +73,6 @@ def process_job(job, link):
     link_to_page = url+link
     last_parsed = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
 
-
-
     container = job.select_one("tr.job.active")
     if container is None:
         logger.info(f'No job info were found, stopping...')
@@ -94,7 +92,7 @@ def process_job(job, link):
     for location in locations_html:
         if location and location.get_text(strip=True) != '':
             locations.append(location.get_text(strip=True))
-    locations = locations[:-1]
+    locations = locations[:-1] #fix later
 
     last_updated_container = job.find("td", class_="time").find('time')
     last_updated = last_updated_container['datetime'] if last_updated_container else None
@@ -117,18 +115,38 @@ def process_job(job, link):
     if not salary or salary == 'Upgrade to Premium':
         salary = None
 
-    print("External id: ", external_id)
-    print("Title: ", full_title)
-    print("Salary: ", salary)
-    print("Tags: ", local_tags)
-    print("Company: ", company)
-    print("Locations: ", locations)
-    print("Is remote: ", True)
-    print("Source: ", source)
-    print("Link to page: ", link_to_page)
-    print("Last updated: ", last_updated)
-    print("Last parsed: ", last_parsed)
-    print("Description: ", description, '...')
+
+    #print("External id: ", external_id)
+    #print("Title: ", full_title)
+    #print("Salary: ", salary)
+    #print("Tags: ", local_tags)
+    #print("Company: ", company)
+    #print("Locations: ", locations)
+    #print("Is remote: ", True)
+    #print("Source: ", source)
+    #print("Link to page: ", link_to_page)
+    #print("Last updated: ", last_updated)
+    #print("Last parsed: ", last_parsed)
+    #print("Description: ", description, '...')
+    experience, employment_type, is_remote = None, None, True
+    object = {
+        "external_id": external_id,
+        "title": full_title,
+        "salary": salary,
+        "experience": experience,
+        "employment_type": employment_type,
+        "tags": local_tags,
+        "company": company,
+        "location": locations,
+        "is_remote": is_remote,
+        "source": source,
+        "link_to_page": link_to_page,
+        "last_updated": last_updated,
+        "last_parsed": last_parsed,
+        "description": description,
+    }
+
+    return object
 
 def extract_job_links(jobs_html):
     links = jobs_html.find_all('a', attrs={'class': 'action-apply' })
@@ -139,36 +157,60 @@ def extract_job_links(jobs_html):
 
     return links
 
-offset = 0
-while True:
+def parse():
+    offset = 0
 
-    jobs_html = fetch_chunk(offset = offset)
+    seen_links = set()
 
-    if not jobs_html:
-        break
+    while True:
 
-    links = extract_job_links(jobs_html)
+        jobs_html = fetch_chunk(offset = offset)
 
-    print(len(links))
+        if not jobs_html:
+            break
 
-    if not links:
-        logger.info(f'No job links for {tags} were found, stopping...')
-        break
+        links = extract_job_links(jobs_html)
+        if not links:
+            logger.info(f'No job links for {tags} were found, stopping...')
+            break
 
-    logger.info(f'Found {len(links)} job links for {tags}, parsing job pages...')
+        noting_new = True
+        i = 0
+        while i < len(links):
+            if links[i] not in seen_links:
+                i+=1
+                noting_new = False
+            else:
+                links.pop(i)
+        if noting_new or len(links) == 0:
+            logger.info(f'No new job links were found, stopping...')
+            break
 
-    i = offset+1
-    for link in links:
+        seen_links.update(links)
+        #print(len(links))
+        logger.info(f'Found {len(links)} job links for {tags}, parsing job pages...')
 
-        html = fetch_page(link)
+        i = offset+1
+        for link in links:
 
-        if not html:
-            logger.info(f'No page on link {link} were found, skipping...')
-            continue
+            html = fetch_page(link)
 
-        logger.info(f'Processing job on {link} ...')
-        process_job(html, link)
-        i+=1
-    offset += 50
+            if not html:
+                logger.info(f'No page on link {link} were found, skipping...')
+                continue
 
-    time.sleep(1)
+            logger.info(f'Processing job on {link} ...')
+            try:
+                processed_job = process_job(html, link)
+                if processed_job:
+                    logger.info(f"Successfully processed job: {processed_job}")
+                    yield processed_job
+                else:
+                    logger.error(f"Failed to process job: {link}")
+            except Exception as e:
+                logger.error(f"Error processing job: {link}. Error: {e}")
+
+            i+=1
+        offset += 50
+
+        time.sleep(1)

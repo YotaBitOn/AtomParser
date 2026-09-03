@@ -151,10 +151,15 @@ emp_mapping = {
 
 numbers = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', ' ']
 
-READ_MODE = 'json' # will be obtained from a config file
+import json
+with open('config/config.json', 'r', encoding='utf-8') as f:
+    config = json.load(f)
+READ_MODE = config['READ_MODE_WORKUA']
 normalized_jobs = []
 
 def connect_parser():
+    import etl_pipeline.workua.workua_parser as workua_parser
+
     gen = workua_parser.parse()
     #currecy yes, salary yes, location no
 
@@ -169,25 +174,25 @@ def connect_parser():
             logger.error(f'No job found, skipping...')
             continue
 
-        norm(job)
+        normalized_job = norm(job)
         counter += 1
-        print(f'Normed job #{counter}')
-        print(f'\n\n\n\n\n')
-        normalized_jobs.append(job)
+        logger.info(f'Normed job #{counter} from workua')
+
+        yield normalized_job
 
 def read_data():
     import json
-    with open('data.json', 'r', encoding='utf-8') as f:
+    with open('etl_pipeline/workua/data.json', 'r', encoding='utf-8') as f:
         data = json.load(f)
 
     counter = 0
     for job in data:
-        norm(job)
+        normalized_job = norm(job)
 
         counter += 1
-        print(f'Normed job #{counter}')
-        print(f'\n\n\n\n\n')
-        normalized_jobs.append(job)
+        logger.info(f'Normed job #{counter} from workua')
+
+        yield normalized_job
 
 def norm(job):
         normalized_job = job.copy()
@@ -247,11 +252,29 @@ def norm(job):
 
         del normalized_job['salary']
         del normalized_job['location']
-        for k, v in normalized_job.items():
-            print(k, ' : ', v)
+        #for k, v in normalized_job.items():
+        #    print(k, ' : ', v)
 
-if READ_MODE == 'json':
-    read_data()
-elif READ_MODE == 'parser':
-    import workua_parser
-    connect_parser()
+        return normalized_job
+def normalize():
+    if READ_MODE == 'json':
+        gen = read_data()
+    elif READ_MODE == 'parser':
+
+        gen = connect_parser()
+
+    while True:
+        try:
+            obj = next(gen)
+        except StopIteration:
+            logger.info('No more jobs to normalize, finishing normalization')
+            break
+        except RuntimeError:
+            logger.info('RE: No more jobs to normalize, finishing normalization')
+            break
+        if obj is None:
+            logger.error('Job object is empty,  finishing normalization')
+            break
+
+        logger.info(f'Normed job:{obj.get("external_id")}, saving...')
+        yield obj

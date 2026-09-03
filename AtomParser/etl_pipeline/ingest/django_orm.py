@@ -1,17 +1,20 @@
-from AtomParser.app.models import Job, Skill, Location, Salary
+from app.models import Job, Skill, Location, Salary
 
-from AtomParser.etl_pipeline.jooble.jooble_norm import normalize as normalize_jooble
-from AtomParser.etl_pipeline.remoteok.remoteok_norm import normalize as normalize_remoteok
-from AtomParser.etl_pipeline.workua.workua_norm import normalize as normalize_workua
+from etl_pipeline.jooble.jooble_norm import normalize as normalize_jooble
+from etl_pipeline.remoteok.remoteok_norm import normalize as normalize_remoteok
+from etl_pipeline.workua.workua_norm import normalize as normalize_workua
 
 import logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+import json
+with open('config/config.json', 'r', encoding='utf-8') as f:
+    config = json.load(f)
 parsers = {
-     normalize_jooble : False,
-     normalize_remoteok : False,
-     normalize_workua : False
+     normalize_jooble : config['PARSE_JOOBLE'],
+     normalize_remoteok : config['PARSE_REMOTOK'],
+     normalize_workua : config['PARSE_WORKUA']
 }
 
 def save_job(job_data):
@@ -41,7 +44,7 @@ def save_job(job_data):
     skills = []
 
     for skill_name in job_data["tags"]:
-        skill, _ = Skill.objects.get_or_create(
+        skill, _ = Skill.objects.update_or_create(
             name=skill_name
         )
         skills.append(skill)
@@ -70,6 +73,7 @@ def save_job(job_data):
 def ingest():
     for parser, enabled in parsers.items():
         if enabled:
+            logger.info(f'Starting ingesting objects from {parser.__name__}')
             gen = parser()
             while True:
                 try:
@@ -87,6 +91,7 @@ def ingest():
                     logger.info(f'Saved job {job["external_id"]} from {job["source"]}')
                 except Exception as e:
                     logger.error(f'Error saving job {job["external_id"]} from {job["source"]}. Error: {e}')
+            logger.info(f'Finished ingesting objects from {parser.__name__}')
         else:
             continue
 if __name__ == '__main__':

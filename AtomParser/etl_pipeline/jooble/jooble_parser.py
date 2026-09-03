@@ -8,8 +8,10 @@ from bs4 import BeautifulSoup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
-#will use dotenv later
-API_KEY = "badb15ef-f252-4028-91e5-681556c7975c"
+import os
+from dotenv import load_dotenv
+
+API_KEY = os.getenv('JOOBLE_API')
 
 url = f"https://jooble.org/api/{API_KEY}"
 
@@ -69,7 +71,7 @@ def fetch_job_list(page = 1):
 
 def process_job(job):
 
-    print(job.keys())
+    #print(job.keys())
 
     external_id = job.get('id')
     title = 'Software Engineer'
@@ -91,40 +93,23 @@ def process_job(job):
     description = None
 
 
-    #print("External id: ", external_id)
-    #print("Title: ", title)
-    #print("Salary: ", salary)
-    #print("Experience: ", experience)
-    #print("Employment type: ", employment_type)
-    #print("Tags: ", local_tags)
-    #print("Company: ", company)
-    #print("Location: ", location)
-    #print("Is remote: ", is_remote)
-    #print("Source: ", source)
-    #print("Link to page: ", link_to_page)
-    #print("Last updated: ", last_updated)
-    #print("Last parsed: ", last_parsed)
-    #print("Description: ", description, '...')
-    print('\n\n\n')
+    ##print("External id: ", external_id)
+    ##print("Title: ", title)
+    ##print("Salary: ", salary)
+    ##print("Experience: ", experience)
+    ##print("Employment type: ", employment_type)
+    ##print("Tags: ", local_tags)
+    ##print("Company: ", company)
+    ##print("Location: ", location)
+    ##print("Is remote: ", is_remote)
+    ##print("Source: ", source)
+    ##print("Link to page: ", link_to_page)
+    ##print("Last updated: ", last_updated)
+    ##print("Last parsed: ", last_parsed)
+    ##print("Description: ", description, '...')
+    #print('\n\n\n')
 
-    object = {
-        "external_id": external_id,
-        "title": full_title,
-        "salary": salary,
-        "experience": experience,
-        "employment_type": employment_type,
-        "tags": local_tags,
-        "company": company,
-        "location": location,
-        "is_remote": is_remote,
-        "source": source,
-        "link_to_page": link_to_page,
-        "last_updated": last_updated,
-        "last_parsed": last_parsed,
-        "description": description,
-    }
 
-    return object
 #doing first fetch
 def parse():
     basic_data = fetch_job_list()
@@ -152,7 +137,7 @@ def parse():
         logger.info(f"Fetching page {page}")
 
         data = fetch_job_list(page)
-        if not data:
+        if not data or not data.get('jobs') or len(data['jobs']) == 0:
             logger.warning(f"Page {page} is empty, breaking parsing process")
             break
 
@@ -160,6 +145,7 @@ def parse():
             try:
                 processed_job = process_job(job)
                 if processed_job:
+                    logger.info(f"Successfully processed job: {processed_job}")
                     yield processed_job
                 else:
                     logger.error(f"Failed to process job: {job}")
